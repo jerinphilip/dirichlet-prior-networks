@@ -37,7 +37,8 @@ if __name__ == '__main__':
 
     device = torch.device(args.device)
     model = SimpleConvModel().to(device)
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=args.momentum)
+    optimizer = optim.Adam(model.parameters(), lr=args.lr,
+            weight_decay=args.weight_decay)
     for epoch in range(1, args.epochs + 1):
         train(args, model, device, train_loader, optimizer, epoch)
         # test(args, model, device, test_loader)
