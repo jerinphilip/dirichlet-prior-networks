@@ -38,7 +38,7 @@ class ConvModel(nn.Module):
 
         self.conv_layers = [
             build_conv_bn( 
-                num_filters if i > 0 else 512, num_filters
+                num_filters if i > 0 else 512, num_filters,
                 kernel_size=self.kernel_size
             ) for i in range(self.num_conv_layers)
         ]
@@ -70,7 +70,7 @@ class ConvModel(nn.Module):
 
 class SimpleConvModel(nn.Module):
     def __init__(self):
-        super(Net, self).__init__()
+        super().__init__()
         self.conv1 = nn.Conv2d(1, 20, 5, 1)
         self.conv2 = nn.Conv2d(20, 50, 5, 1)
         self.fc1 = nn.Linear(4*4*50, 500)
