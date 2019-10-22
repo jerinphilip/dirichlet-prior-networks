@@ -28,7 +28,7 @@ if __name__ == '__main__':
     add_args(parser)
     args = parser.parse_args()
     train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST('../data', train=True, download=True,
+        datasets.MNIST(args.work_dir, train=True, download=False,
                        transform=transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
