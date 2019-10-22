@@ -13,11 +13,16 @@ def one_hot(labels):
     x.scatter_(1, labels.unsqueeze(1), 1.)
     return x
 
+def lgamma(tensor):
+    # Some confusion with lgamma's missing documentation.
+    return torch.lgamma(tensor)
+
 class NLLCost(nn.Module):
-    def __init__(self, num_labels, eps=1e-8):
+    def __init__(self, num_labels, eps=1e-8, reduce=True):
         super().__init__()
         self.eps = 1e-8
         self.num_labels = num_labels
+        self.reduce = reduce
 
     def forward(self, net_output, labels):
         # Translating below segment to PyTorch. This one is present in  the paper.
@@ -34,8 +39,8 @@ class NLLCost(nn.Module):
         alphas = logits.exp() + self.eps
         concentration =  alphas.sum(axis = dimH)
         loss = (
-                torch.lgamma(concentration)
-                - torch.lgamma(alphas).sum(dim = dimH) 
+                lgamma(concentration)
+                - lgamma(alphas).sum(dim = dimH) 
                 + torch.sum(
                     (alphas - 1.0) * targets.float().log(),
                     dim = dimH
@@ -50,10 +55,11 @@ class NLLCost(nn.Module):
         return loss
 
 class ExpectedKL(nn.Module):
-    def __init__(self, alpha, eps=1e-8):
+    def __init__(self, alpha, eps=1e-8, reduce=True):
         super().__init__()
         self.alpha = alpha
         self.eps = eps
+        self.reduce = reduce
 
     def forward(self, net_output, labels):
         # TODO(jerin): Make one more pass. There may be a more
@@ -69,13 +75,13 @@ class ExpectedKL(nn.Module):
         target_precision = self.alpha * torch.ones((B, 1)).float()
 
         loss = (
-            torch.lgamma(target_precision + eps) 
-            - torch.lgamma(precision + eps)
+            lgamma(target_precision + eps) 
+            - lgamma(precision + eps)
             + torch.sum(
                 (
-                    torch.lgamma(mean * precision + eps)
-                    - torch.lgamma(target_mean * target_precision + eps)
-                ), dim=dimH
+                    lgamma(mean * precision + eps)
+                    - lgamma(target_mean * target_precision + eps)
+                ), dim = dimH
             )
             + (
                 torch.sum(
