@@ -5,11 +5,11 @@ import torch
 import torch.nn.functional as F
 from torch.distributions.dirichlet import Dirichlet
 
-def one_hot(labels):
+def one_hot(labels, num_labels):
     # Credits: ptrblck
     # https://discuss.pytorch.org/t/convert-int-into-one-hot-format/507/31
 
-    x = torch.zeros(len(labels), self.num_labels)
+    x = labels.new_zeros((len(labels), num_labels))
     x.scatter_(1, labels.unsqueeze(1), 1.)
     return x
 
@@ -18,10 +18,9 @@ def lgamma(tensor):
     return torch.lgamma(tensor)
 
 class NLLCost(nn.Module):
-    def __init__(self, num_labels, eps=1e-8, reduce=True):
+    def __init__(self, eps=1e-8, reduce=True):
         super().__init__()
         self.eps = 1e-8
-        self.num_labels = num_labels
         self.reduce = reduce
 
     def forward(self, net_output, labels):
@@ -29,7 +28,8 @@ class NLLCost(nn.Module):
         # https://github.com/KaosEngineer/PriorNetworks-OLD/blob/79cb8300238271566a5bbb69f0744f1d80924a1a/prior_networks/dirichlet/dirichlet_prior_network.py#L328-L334
 
         logits = net_output['logits']
-        targets = one_hot(labels)
+        B, H = logits.size()
+        targets = one_hot(labels, H)
 
         B, H = logits.size()
         dimB, dimH = 0, 1
@@ -66,33 +66,31 @@ class ExpectedKL(nn.Module):
         # Translation of
         # https://github.com/KaosEngineer/PriorNetworks-OLD/blob/master/prior_networks/dirichlet/dirichlet_prior_network.py#L281-L294
 
-        mean = net_output['mean']
-        precision = net_output['precision']
+        logits, gain = net_output['logits'], net_output['gain']
 
-        B, H = mean.size()
+        B, H = logits.size()
         dimB, dimH = 0, 1
         eps = self.eps
 
-        target_mean = one_hot(labels)
-        target_precision = self.alpha * torch.ones((B, 1)).float()
+        mean = F.softmax(logits, dim=dimH)
+        precision = torch.sum((logits + gain).exp(), dim=dimH, keepdim=True)
+        target_mean = one_hot(labels, H).float()
+        target_precision = self.alpha * precision.new_ones((B, 1)).float()
 
-        loss = (
-            lgamma(target_precision + eps) 
-            - lgamma(precision + eps)
-            + torch.sum(
-                (
-                    lgamma(mean * precision + eps)
-                    - lgamma(target_mean * target_precision + eps)
-                ), dim = dimH
-            )
-            + (
-                torch.sum(
-                    (target_precision * target_mean - precision * mean) 
-                    * (
-                        torch.digamma(target_mean * target_precision + eps) 
-                        - torch.digamma(target_precision + eps)
-                    ), dim = dimH
+        dlgamma = lgamma(target_precision + eps) - lgamma(precision + eps)
+        dsumlgamma = torch.sum(
+            (lgamma(mean * precision + eps)
+              - lgamma(target_mean * target_precision + eps)
+            ), dim = dimH
         )
 
+        dconc = target_precision * target_mean - precision * mean
+        dphiconc = (
+            torch.digamma(target_mean * target_precision + eps) 
+            - torch.digamma(target_precision + eps)
+        )
+
+        dprodconc_conc_phi = torch.sum(dconc*dphiconc, dim = dimH)
+        loss = (dlgamma + dsumlgamma + dprodconc_conc_phi)
         loss = loss.mean()
         return loss
