@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
-from dpn.models import SimpleConvModel
+from dpn.models import build_conv_model
 from dpn.args import add_args
 
 def train(args, model, device, train_loader, optimizer, epoch):
@@ -12,8 +12,9 @@ def train(args, model, device, train_loader, optimizer, epoch):
     for batch_idx, (data, target) in enumerate(train_loader):
         data, target = data.to(device), target.to(device)
         optimizer.zero_grad()
-        output = model(data)
-        loss = F.cross_entropy(output, target)
+        net_output = model(data)
+        logits = net_output['logits'] + net_output['gain']
+        loss = F.cross_entropy(logits, target)
         loss.backward()
         optimizer.step()
         if batch_idx % args.log_interval == 0:
@@ -36,7 +37,9 @@ if __name__ == '__main__':
         batch_size=args.batch_size, shuffle=True)
 
     device = torch.device(args.device)
-    model = SimpleConvModel().to(device)
+    # model = SimpleConvModel().to(device)
+    model = build_conv_model(args.model)
+    model = model.to(device)
     optimizer = optim.Adam(model.parameters(), lr=args.lr,
             weight_decay=args.weight_decay)
     for epoch in range(1, args.epochs + 1):

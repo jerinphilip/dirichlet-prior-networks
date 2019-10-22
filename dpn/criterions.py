@@ -26,10 +26,7 @@ class NLLCost(nn.Module):
 
     def forward(self, net_output, labels):
         # Translating below segment to PyTorch. This one is present in  the paper.
-        # https://github.com/KaosEngineer/PriorNetworks-OLD/blob/
-        # 79cb8300238271566a5bbb69f0744f1d80924a1a/
-        # prior_networks/dirichlet/dirichlet_prior_network.py
-        # #L328-L334
+        # https://github.com/KaosEngineer/PriorNetworks-OLD/blob/79cb8300238271566a5bbb69f0744f1d80924a1a/prior_networks/dirichlet/dirichlet_prior_network.py#L328-L334
 
         logits = net_output['logits']
         targets = one_hot(labels)
@@ -55,15 +52,20 @@ class NLLCost(nn.Module):
         return loss
 
 class ExpectedKL(nn.Module):
-    def __init__(self, alpha, eps=1e-8, reduce=True):
+    def __init__(self, alpha, eps=1e-8, reduce=True, smoothing=False):
         super().__init__()
         self.alpha = alpha
         self.eps = eps
         self.reduce = reduce
+        self.smoothing = smoothing
 
     def forward(self, net_output, labels):
         # TODO(jerin): Make one more pass. There may be a more
         # numerically stable way of doing this.
+
+        # Translation of
+        # https://github.com/KaosEngineer/PriorNetworks-OLD/blob/master/prior_networks/dirichlet/dirichlet_prior_network.py#L281-L294
+
         mean = net_output['mean']
         precision = net_output['precision']
 

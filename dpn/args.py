@@ -1,4 +1,5 @@
 
+from dpn.models import ConvModel
 
 
 def add_args(parser):
@@ -15,3 +16,6 @@ def add_args(parser):
     parser.add_argument('--weight_decay', type=float, required=True)
 
     parser.add_argument('--work_dir', type=str, required=True)
+    parser.add_argument('--model', type=str, required=True)
+
+    # ConvModel.add_args(parser)

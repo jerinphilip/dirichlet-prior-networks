@@ -11,4 +11,5 @@ python3 -m dpn.main \
     --momentum 0.9  \
     --lr 1e-3       \
     --work_dir /ssd_scratch/cvit/$USER/ \
-    --weight_decay 0.0
+    --weight_decay 0.0 \
+    --model vgg6
