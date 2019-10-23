@@ -51,6 +51,14 @@ class NLLCost(nn.Module):
 
         return loss
 
+class CrossEntropyLoss(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, net_output, labels):
+        logits = net_output['logits']
+        return F.cross_entropy(logits, labels)
+
 class ExpectedKL(nn.Module):
     def __init__(self, alpha, eps=1e-8, reduce=True, smoothing=False):
         super().__init__()
@@ -94,3 +102,15 @@ class ExpectedKL(nn.Module):
         loss = (dlgamma + dsumlgamma + dprodconc_conc_phi)
         loss = loss.mean()
         return loss
+
+class MultiTaskLoss(nn.Module):
+    def __init__(self, weighted_losses):
+        super().__init__()
+        self.losses = weighted_losses
+
+    def forward(self, net_output, labels):
+        accumulator = 0
+        for loss in self.losses:
+            if loss.weight:
+                accumulator += loss.weight * loss.f(net_output, labels)
+        return accumulator

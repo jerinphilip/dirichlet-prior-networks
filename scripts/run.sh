@@ -4,8 +4,8 @@ module load python/3.7.0
 module load pytorch/1.0.0
 
 python3 -m dpn.main \
-    --alpha 0.3 \
-    --epochs 20 \
+    --alpha 1e3 \
+    --epochs 1000 \
     --device cuda \
     --batch_size 256 \
     --momentum 0.9  \

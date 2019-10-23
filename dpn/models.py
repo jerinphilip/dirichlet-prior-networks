@@ -99,7 +99,7 @@ def build_conv_model(tag):
                 output_classes=10,
                 dropout=0.5,
                 fc_layer_sizes=[32, 100],
-                gain=True
+                gain=False
             )
         ),
     }
