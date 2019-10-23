@@ -59,7 +59,7 @@ class CrossEntropyLoss(nn.Module):
         logits = net_output['logits']
         return F.cross_entropy(logits, labels)
 
-class ExpectedKL(nn.Module):
+class DirichletKLDiv(nn.Module):
     def __init__(self, alpha, eps=1e-8, reduce=True, smoothing=False):
         super().__init__()
         self.alpha = alpha
@@ -114,3 +114,16 @@ class MultiTaskLoss(nn.Module):
             if loss.weight:
                 accumulator += loss.weight * loss.f(net_output, labels)
         return accumulator
+
+
+def build_criterion(args):
+    # Switch to control criterion
+    # Criterion is a multi-task-objective.
+    # https://github.com/KaosEngineer/PriorNetworks-OLD/blob/master/prior_networks/dirichlet/dirichlet_prior_network.py#L629-L640
+    WeightedLoss = namedtuple('WeightedLoss', 'weight f')
+    weighted_losses = [
+        WeightedLoss(weight=1e-4, f=DirichletKLDiv(alpha = args.alpha)),
+        WeightedLoss(weight=1.0, f=CrossEntropyLoss()),
+    ]
+    criterion = MultiTaskLoss(weighted_losses)
+    return criterion

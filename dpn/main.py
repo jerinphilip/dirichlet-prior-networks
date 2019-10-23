@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
 from dpn.models import build_conv_model
-from dpn.criterions import ExpectedKL, NLLCost, CrossEntropyLoss, MultiTaskLoss
+from dpn.criterions import build_criterion
 from dpn.args import add_args
 from collections import namedtuple
 
@@ -50,7 +50,7 @@ if __name__ == '__main__':
     add_args(parser)
     args = parser.parse_args()
     train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST(args.work_dir, train=True, download=False,
+        datasets.MNIST(args.work_dir, train=True, download=True,
                        transform=transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
@@ -69,13 +69,7 @@ if __name__ == '__main__':
     device = torch.device(args.device)
     model = build_conv_model(args.model)
     model = model.to(device)
-
-    WeightedLoss = namedtuple('WeightedLoss', 'weight f')
-    weighted_losses = [
-        WeightedLoss(weight=1.0, f=ExpectedKL(alpha = args.alpha)),
-        WeightedLoss(weight=0.0, f=CrossEntropyLoss()),
-    ]
-    criterion = MultiTaskLoss(weighted_losses)
+    criterion = build_criterion(args)
     optimizer = optim.Adam(model.parameters(), lr=args.lr,
             weight_decay=args.weight_decay)
     for epoch in range(1, args.epochs + 1):
