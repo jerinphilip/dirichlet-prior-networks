@@ -1,9 +1,8 @@
-
-
 from torch import nn
 import torch 
 import torch.nn.functional as F
 from torch.distributions.dirichlet import Dirichlet
+from collections import namedtuple
 
 def one_hot(labels, num_labels):
     # Credits: ptrblck
@@ -60,7 +59,7 @@ class CrossEntropyLoss(nn.Module):
         return F.cross_entropy(logits, labels)
 
 class DirichletKLDiv(nn.Module):
-    def __init__(self, alpha, eps=1e-8, reduce=True, smoothing=False):
+    def __init__(self, alpha, eps=1e-8, reduce=True, smoothing=1e-2):
         super().__init__()
         self.alpha = alpha
         self.eps = eps
@@ -78,13 +77,27 @@ class DirichletKLDiv(nn.Module):
 
         B, H = logits.size()
         dimB, dimH = 0, 1
-        eps = self.eps
 
         mean = F.softmax(logits, dim=dimH)
         precision = torch.sum((logits + gain).exp(), dim=dimH, keepdim=True)
-        target_mean = one_hot(labels, H).float()
+        labels_one_hot = one_hot(labels, H).float()
         target_precision = self.alpha * precision.new_ones((B, 1)).float()
 
+        if abs(self.smoothing) > self.eps:
+            target_mean = (
+                (1 - H*self.smoothing)*labels_one_hot 
+                + self.smoothing * torch.ones_like(labels_one_hot)
+            )
+        else:
+            target_mean = labels_one_hot
+
+        loss = self._compute_loss(mean, precision, target_mean, target_precision)
+        return loss
+
+    def _compute_loss(self, mean, precision, target_mean, target_precision):
+        eps = self.eps
+        B, H = mean.size()
+        dimB, dimH = 0, 1
         dlgamma = lgamma(target_precision + eps) - lgamma(precision + eps)
         dsumlgamma = torch.sum(
             (lgamma(mean * precision + eps)
@@ -122,7 +135,7 @@ def build_criterion(args):
     # https://github.com/KaosEngineer/PriorNetworks-OLD/blob/master/prior_networks/dirichlet/dirichlet_prior_network.py#L629-L640
     WeightedLoss = namedtuple('WeightedLoss', 'weight f')
     weighted_losses = [
-        WeightedLoss(weight=1e-4, f=DirichletKLDiv(alpha = args.alpha)),
+        WeightedLoss(weight=1.0, f=DirichletKLDiv(alpha = args.alpha)),
         WeightedLoss(weight=1.0, f=CrossEntropyLoss()),
     ]
     criterion = MultiTaskLoss(weighted_losses)
