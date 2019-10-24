@@ -4,6 +4,8 @@ import torch.nn.functional as F
 from torch.distributions.dirichlet import Dirichlet
 from collections import namedtuple
 
+EPS = 1e-8
+
 def one_hot(labels, num_labels):
     # Credits: ptrblck
     # https://discuss.pytorch.org/t/convert-int-into-one-hot-format/507/31
@@ -13,12 +15,21 @@ def one_hot(labels, num_labels):
     return x
 
 def label_smooth(labels_one_hot, smoothing):
-    B, H = labels_one_hot.size()
+    if smoothing < EPS:
+        return labels_one_hot
+
+    batch_size, num_classes = labels_one_hot.size()
     smoothed = (
-            (1 - H*smoothing)*labels_one_hot 
+            (1 - num_classes*smoothing)*labels_one_hot 
             + smoothing * torch.ones_like(labels_one_hot)
-        )
+    )
     return smoothed
+
+def dirichlet_params_from_logits(logits):
+    dimB, dimH = 0, 1
+    alphas = logits.exp() + EPS
+    concentration = alphas.sum(dim = dimH, keepdim=True)
+    return alphas, concentration
 
 
 def lgamma(tensor):
@@ -26,9 +37,8 @@ def lgamma(tensor):
     return torch.lgamma(tensor)
 
 class NLLCost(nn.Module):
-    def __init__(self, smoothing=1e-2, eps=1e-8, reduce=True):
+    def __init__(self, smoothing=1e-2, reduce=True):
         super().__init__()
-        self.eps = 1e-8
         self.smoothing = smoothing
         self.reduce = reduce
 
@@ -37,13 +47,13 @@ class NLLCost(nn.Module):
         # https://github.com/KaosEngineer/PriorNetworks-OLD/blob/79cb8300238271566a5bbb69f0744f1d80924a1a/prior_networks/dirichlet/dirichlet_prior_network.py#L328-L334
 
         logits = net_output['logits']
-        B, H = logits.size()
-        labels_one_hot = one_hot(labels, H)
-        targets = (labels_one_hot if self.smoothing > self.eps else label_smooth(labels_one_hot, self.smoothing))
-        B, H = logits.size()
+        batch_size, num_classes = logits.size()
+        labels_one_hot = one_hot(labels, num_classes)
+        targets = label_smooth(labels_one_hot, self.smoothing)
         dimB, dimH = 0, 1
-        alphas = logits.exp() + self.eps
-        concentration =  alphas.sum(axis = dimH)
+
+        alphas, concentration = dirichlet_params_from_logits(logits)
+
         loss = (
                 lgamma(concentration)
                 - lgamma(alphas).sum(dim = dimH) 
@@ -53,14 +63,9 @@ class NLLCost(nn.Module):
                 )
         )
 
-        # In the end, this looks like a complicated formulation of a
-        # probability using dirichlet components.
-        # logits can be trained with crossentropy, which should be
-        # equivalent, why are we going through this pain?
+        return loss.mean()
 
-        return loss
-
-class CrossEntropyLoss(nn.Module):
+class CrossEntropy(nn.Module):
     def __init__(self):
         super().__init__()
 
@@ -69,41 +74,35 @@ class CrossEntropyLoss(nn.Module):
         return F.cross_entropy(logits, labels)
 
 class DirichletKLDiv(nn.Module):
-    def __init__(self, alpha, eps=1e-8, reduce=True, smoothing=1e-2):
+    def __init__(self, alpha, reduce=True, smoothing=1e-2):
         super().__init__()
         self.alpha = alpha
-        self.eps = eps
         self.reduce = reduce
         self.smoothing = smoothing
 
     def forward(self, net_output, labels):
-        # TODO(jerin): Make one more pass. There may be a more
-        # numerically stable way of doing this.
-
         # Translation of
         # https://github.com/KaosEngineer/PriorNetworks-OLD/blob/master/prior_networks/dirichlet/dirichlet_prior_network.py#L281-L294
 
         logits, gain = net_output['logits'], net_output['gain']
 
-        B, H = logits.size()
+        batch_size, num_classes = logits.size()
         dimB, dimH = 0, 1
 
+        # mean and precision from the network
         mean = F.softmax(logits, dim=dimH)
         precision = torch.sum((logits + gain).exp(), dim=dimH, keepdim=True)
-        labels_one_hot = one_hot(labels, H).float()
-        target_precision = self.alpha * precision.new_ones((B, 1)).float()
 
-        if abs(self.smoothing) > self.eps:
-            target_mean = label_smooth(labels_one_hot, self.smoothing)
-        else:
-            target_mean = labels_one_hot
+        # the expected mean and precision, from the ground truth
+        labels_one_hot = one_hot(labels, num_classes).float()
+        target_mean = label_smooth(labels_one_hot, self.smoothing)
+        target_precision = self.alpha * precision.new_ones((batch_size, 1)).float()
 
         loss = self._compute_loss(mean, precision, target_mean, target_precision)
         return loss
 
     def _compute_loss(self, mean, precision, target_mean, target_precision):
-        eps = self.eps
-        B, H = mean.size()
+        eps = EPS
         dimB, dimH = 0, 1
         dlgamma = lgamma(target_precision + eps) - lgamma(precision + eps)
         dsumlgamma = torch.sum(
@@ -121,6 +120,51 @@ class DirichletKLDiv(nn.Module):
         dprodconc_conc_phi = torch.sum(dconc*dphiconc, dim = dimH)
         loss = (dlgamma + dsumlgamma + dprodconc_conc_phi)
         loss = loss.mean()
+        return loss
+
+class MutualInformation(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, net_output, labels):
+        logits = net_output['logits']
+        dimB, dimH = 0, 1
+        alphas, concentration = dirichlet_params_from_logits(logits)
+
+        mutual_information = torch.sum(
+                alphas/concentration * 
+                (
+                    torch.log(alphas) 
+                    - torch.log(concentration)
+                    - torch.digamma(alphas + 1.0)
+                    + torch.digamma(concentration + 1.0)
+                )
+            ,dim=dimH
+        )
+
+        loss = mutual_information.mean()
+        return loss
+
+class DifferentialEntropy(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, net_output, labels):
+        logits = net_output['logits']
+
+        dimB, dimH = 0, 1
+        batch_size, num_classes = logits.size()
+
+        alphas, concentration = dirichlet_params_from_logits(logits)
+
+        differential_entropy = (
+            torch.sum(lgamma(alphas) , dim = dimH)
+             - lgamma(concentration)
+             + (concentration - num_classes) * torch.digamma(concentration)
+             - torch.sum((alphas - 1.0) * torch.digamma(alphas), dim=dimH)
+        )
+
+        loss = differential_entropy.mean()
         return loss
 
 class MultiTaskLoss(nn.Module):
@@ -143,7 +187,10 @@ def build_criterion(args):
     WeightedLoss = namedtuple('WeightedLoss', 'weight f')
     weighted_losses = [
         WeightedLoss(weight=1.0, f=DirichletKLDiv(alpha = args.alpha)),
-        WeightedLoss(weight=1.0, f=CrossEntropyLoss()),
+        WeightedLoss(weight=1.0, f=CrossEntropy()),
+        WeightedLoss(weight=1.0, f=DifferentialEntropy()),
+        WeightedLoss(weight=1.0, f=NLLCost()),
+        WeightedLoss(weight=1.0, f=MutualInformation()),
     ]
     criterion = MultiTaskLoss(weighted_losses)
     return criterion
