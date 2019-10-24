@@ -12,14 +12,24 @@ def one_hot(labels, num_labels):
     x.scatter_(1, labels.unsqueeze(1), 1.)
     return x
 
+def label_smooth(labels_one_hot, smoothing):
+    B, H = labels_one_hot.size()
+    smoothed = (
+            (1 - H*smoothing)*labels_one_hot 
+            + smoothing * torch.ones_like(labels_one_hot)
+        )
+    return smoothed
+
+
 def lgamma(tensor):
     # Some confusion with lgamma's missing documentation.
     return torch.lgamma(tensor)
 
 class NLLCost(nn.Module):
-    def __init__(self, eps=1e-8, reduce=True):
+    def __init__(self, smoothing=1e-2, eps=1e-8, reduce=True):
         super().__init__()
         self.eps = 1e-8
+        self.smoothing = smoothing
         self.reduce = reduce
 
     def forward(self, net_output, labels):
@@ -28,8 +38,8 @@ class NLLCost(nn.Module):
 
         logits = net_output['logits']
         B, H = logits.size()
-        targets = one_hot(labels, H)
-
+        labels_one_hot = one_hot(labels, H)
+        targets = (labels_one_hot if self.smoothing > self.eps else label_smooth(labels_one_hot, self.smoothing))
         B, H = logits.size()
         dimB, dimH = 0, 1
         alphas = logits.exp() + self.eps
@@ -84,10 +94,7 @@ class DirichletKLDiv(nn.Module):
         target_precision = self.alpha * precision.new_ones((B, 1)).float()
 
         if abs(self.smoothing) > self.eps:
-            target_mean = (
-                (1 - H*self.smoothing)*labels_one_hot 
-                + self.smoothing * torch.ones_like(labels_one_hot)
-            )
+            target_mean = label_smooth(labels_one_hot, self.smoothing)
         else:
             target_mean = labels_one_hot
 
