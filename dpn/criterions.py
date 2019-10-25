@@ -74,11 +74,12 @@ class CrossEntropy(nn.Module):
         return F.cross_entropy(logits, labels)
 
 class DirichletKLDiv(nn.Module):
-    def __init__(self, alpha, reduce=True, smoothing=1e-2):
+    def __init__(self, alpha, reduce=True, in_domain=True, smoothing=1e-2):
         super().__init__()
         self.alpha = alpha
         self.reduce = reduce
         self.smoothing = smoothing
+        self.in_domain = in_domain
 
     def forward(self, net_output, labels):
         # Translation of
@@ -95,8 +96,20 @@ class DirichletKLDiv(nn.Module):
 
         # the expected mean and precision, from the ground truth
         labels_one_hot = one_hot(labels, num_classes).float()
-        target_mean = label_smooth(labels_one_hot, self.smoothing)
-        target_precision = self.alpha * precision.new_ones((batch_size, 1)).float()
+
+        def in_domain_targets():
+            target_mean = label_smooth(labels_one_hot, self.smoothing)
+            target_precision = self.alpha * precision.new_ones((batch_size, 1))
+            return target_mean, target_precision
+
+        def out_of_domain_targets():
+            # https://github.com/KaosEngineer/PriorNetworks-OLD/blob/master/prior_networks/dirichlet/dirichlet_prior_network.py#L619-L623
+            target_precision = num_classes * precision.new_ones((batch_size, 1)).float()
+            target_mean = torch.ones_like(mean)/num_classes
+            return target_mean, target_precision
+
+        target_f = in_domain_targets if self.in_domain else out_of_domain_targets
+        target_mean, target_precision = target_f()
 
         loss = self._compute_loss(mean, precision, target_mean, target_precision)
         return loss
@@ -188,9 +201,9 @@ def build_criterion(args):
     weighted_losses = [
         WeightedLoss(weight=1.0, f=DirichletKLDiv(alpha = args.alpha)),
         WeightedLoss(weight=1.0, f=CrossEntropy()),
-        WeightedLoss(weight=1.0, f=DifferentialEntropy()),
-        WeightedLoss(weight=1.0, f=NLLCost()),
-        WeightedLoss(weight=1.0, f=MutualInformation()),
+        WeightedLoss(weight=0.0, f=DifferentialEntropy()),
+        WeightedLoss(weight=0.0, f=NLLCost()),
+        WeightedLoss(weight=0.0, f=MutualInformation()),
     ]
     criterion = MultiTaskLoss(weighted_losses)
     return criterion
