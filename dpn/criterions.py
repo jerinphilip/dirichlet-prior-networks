@@ -74,14 +74,13 @@ class CrossEntropy(nn.Module):
         return F.cross_entropy(logits, labels)
 
 class DirichletKLDiv(nn.Module):
-    def __init__(self, alpha, reduce=True, in_domain=True, smoothing=1e-2):
+    def __init__(self, alpha, reduce=True, smoothing=1e-2):
         super().__init__()
         self.alpha = alpha
         self.reduce = reduce
         self.smoothing = smoothing
-        self.in_domain = in_domain
 
-    def forward(self, net_output, labels):
+    def forward(self, net_output, labels, in_domain=True):
         # Translation of
         # https://github.com/KaosEngineer/PriorNetworks-OLD/blob/master/prior_networks/dirichlet/dirichlet_prior_network.py#L281-L294
 
@@ -108,7 +107,7 @@ class DirichletKLDiv(nn.Module):
             target_mean = torch.ones_like(mean)/num_classes
             return target_mean, target_precision
 
-        target_f = in_domain_targets if self.in_domain else out_of_domain_targets
+        target_f = in_domain_targets if in_domain else out_of_domain_targets
         target_mean, target_precision = target_f()
 
         loss = self._compute_loss(mean, precision, target_mean, target_precision)
