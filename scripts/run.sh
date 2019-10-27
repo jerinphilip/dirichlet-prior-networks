@@ -24,8 +24,20 @@ function copy {
 
 # copy
 
+# python3 -m dpn.main \
+#     --dataset mnist \
+#     --alpha 1e3 \
+#     --epochs 1000 \
+#     --device cuda \
+#     --batch_size 256 \
+#     --momentum 0.9  \
+#     --lr 1e-3       \
+#     --work_dir $WORK_DIR \
+#     --weight_decay 0.0 \
+#     --model vgg6
+
 python3 -m dpn.main \
-    --dataset mnist \
+    --dataset synthetic \
     --alpha 1e3 \
     --epochs 1000 \
     --device cuda \
@@ -34,4 +46,6 @@ python3 -m dpn.main \
     --lr 1e-3       \
     --work_dir $WORK_DIR \
     --weight_decay 0.0 \
-    --model vgg6
+    --model mlp \
+    --radius 1.0    \
+    --sigma 0.5

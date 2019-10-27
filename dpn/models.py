@@ -102,6 +102,13 @@ def build_model(tag):
                 gain=False
             )
         ),
+        'mlp': (
+            lambda: VanillaMLP(
+                input_size=2,
+                hidden_size=50,
+                output_size=3,
+            )
+        )
     }
 
     return constructors[tag]()

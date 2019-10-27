@@ -1,4 +1,3 @@
-import os
 import argparse
 import torch
 import torch.nn as nn
@@ -33,7 +32,6 @@ def test(args, model, criterion, device, test_loader):
             data, labels = data.to(device), labels.to(device)
             net_output = model(data)
             logits = net_output['logits']
-            # test_loss += F.nll_loss(logits, labels, reduction='sum').item() # sum up batch loss
             test_loss += criterion(net_output, labels)
             pred = logits.argmax(dim=1, keepdim=True) # get the index of the max log-probability
             correct += pred.eq(labels.view_as(pred)).sum().item()
@@ -45,33 +43,13 @@ def test(args, model, criterion, device, test_loader):
         100. * correct / len(test_loader.dataset)))
 
 
-def MNIST(args):
-    work_dir = os.path.join(args.work_dir, 'mnist')
-    train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST(work_dir, train=True, download=False,
-                       transform=transforms.Compose([
-                           transforms.ToTensor(),
-                           transforms.Normalize((0.1307,), (0.3081,))
-                       ])),
-        batch_size=args.batch_size, shuffle=True)
-
-    test_loader = torch.utils.data.DataLoader(
-        datasets.MNIST(work_dir, train=False, transform=transforms.Compose([
-                           transforms.ToTensor(),
-                           transforms.Normalize((0.1307,), (0.3081,))
-                       ])),
-        batch_size=args.batch_size, shuffle=True)
-    return train_loader, test_loader
-
-
 def build_optimizer(args):
     return optim.Adam(model.parameters(), lr=args.lr,
             weight_decay=args.weight_decay)
 
 def build_loader(args):
-    Loader = namedtuple('Loader', 'train dev test')
-    train_loader, test_loader = MNIST(args)
-    return Loader(train=train_loader, dev=[], test=test_loader)
+    from dpn.data import dataset
+    return dataset[args.dataset](args)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
