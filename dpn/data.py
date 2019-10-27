@@ -16,7 +16,7 @@ class SyntheticDataset(Dataset):
 
     def __getitem__(self, idx):
         idx = idx % 3
-        return self.distributions[idx].sample()
+        return [self.distributions[idx].sample(), torch.Tensor([idx]).long()]
 
     def construct_distributions(self, radius, sigma):
         def mean(angle):
@@ -37,7 +37,6 @@ transform = transforms.Compose([
 ])
 
 # MNIST
-
 if __name__ == '__main__':
     dataset = SyntheticDataset(3, 1, 100)
     samples = len(dataset)

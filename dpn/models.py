@@ -88,7 +88,7 @@ class ConvModel(nn.Module):
         }
 
 
-def build_conv_model(tag):
+def build_model(tag):
     constructors = {
         'vgg6': (
             lambda: ConvModel(
@@ -133,11 +133,11 @@ class VanillaMLP(nn.Module):
         self.output_size = output_size
 
         self.network = nn.Sequential(
-                nn.Linear(input_size, hidden_size),
-                nn.Sigmoid()
-                nn.Linear(hidden_size, output_size)
+           nn.Linear(input_size, hidden_size),
+           nn.Sigmoid(),
+           nn.Linear(hidden_size, output_size)
         )
 
     def forward(self, x):
-        return self.network(x)
+        return { 'logits': self.network(x), 'gain': 0.0}
 

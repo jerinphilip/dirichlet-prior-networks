@@ -1,10 +1,11 @@
+import os
 import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torchvision import datasets, transforms
-from dpn.models import build_conv_model
+from dpn.models import build_model
 from dpn.criterions import build_criterion
 from dpn.args import add_args
 from collections import namedtuple
@@ -44,13 +45,10 @@ def test(args, model, criterion, device, test_loader):
         100. * correct / len(test_loader.dataset)))
 
 
-
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser()
-    add_args(parser)
-    args = parser.parse_args()
+def MNIST(args):
+    work_dir = os.path.join(args.work_dir, 'mnist')
     train_loader = torch.utils.data.DataLoader(
-        datasets.MNIST(args.work_dir, train=True, download=True,
+        datasets.MNIST(work_dir, train=True, download=False,
                        transform=transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
@@ -58,22 +56,35 @@ if __name__ == '__main__':
         batch_size=args.batch_size, shuffle=True)
 
     test_loader = torch.utils.data.DataLoader(
-        datasets.MNIST(args.work_dir, train=False, transform=transforms.Compose([
+        datasets.MNIST(work_dir, train=False, transform=transforms.Compose([
                            transforms.ToTensor(),
                            transforms.Normalize((0.1307,), (0.3081,))
                        ])),
         batch_size=args.batch_size, shuffle=True)
+    return train_loader, test_loader
 
 
+def build_optimizer(args):
+    return optim.Adam(model.parameters(), lr=args.lr,
+            weight_decay=args.weight_decay)
 
+def build_loader(args):
+    Loader = namedtuple('Loader', 'train dev test')
+    train_loader, test_loader = MNIST(args)
+    return Loader(train=train_loader, dev=[], test=test_loader)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    add_args(parser)
+    args = parser.parse_args()
+    loader = build_loader(args)
     device = torch.device(args.device)
-    model = build_conv_model(args.model)
+    model = build_model(args.model)
     model = model.to(device)
     criterion = build_criterion(args)
-    optimizer = optim.Adam(model.parameters(), lr=args.lr,
-            weight_decay=args.weight_decay)
+    optimizer = build_optimizer(args)
     for epoch in range(1, args.epochs + 1):
-        train(args, model, criterion, device, train_loader, optimizer, epoch)
-        test(args, model, criterion, device, test_loader)
+        train(args, model, criterion, device, loader.train, optimizer, epoch)
+        test(args, model, criterion, device, loader.test)
 
 

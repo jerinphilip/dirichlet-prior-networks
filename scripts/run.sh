@@ -22,8 +22,10 @@ function copy {
     done;
 }
 
+# copy
 
 python3 -m dpn.main \
+    --dataset mnist \
     --alpha 1e3 \
     --epochs 1000 \
     --device cuda \

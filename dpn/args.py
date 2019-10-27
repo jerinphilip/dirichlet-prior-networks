@@ -17,5 +17,6 @@ def add_args(parser):
 
     parser.add_argument('--work_dir', type=str, required=True)
     parser.add_argument('--model', type=str, required=True)
+    parser.add_argument('--dataset', type=str, required=True)
 
     # ConvModel.add_args(parser)
