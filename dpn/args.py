@@ -25,6 +25,4 @@ def add_args(parser):
     parser.add_argument('--num_train_samples', type=int, default=int(1e4))
     parser.add_argument('--num_test_samples', type=int, default=int(1e2))
 
-
-
-    # ConvModel.add_args(parser)
+    parser.add_argument('--log', action='store_true')

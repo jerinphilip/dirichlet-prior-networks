@@ -37,6 +37,17 @@ class SyntheticDataset(Dataset):
         distributions = [ Normal(mean, sigma) for mean in means]
         return distributions
 
+    @staticmethod
+    def grid_data(num_points, length=None):
+        length = length or 2*self.radius
+        ps = torch.linspace(-1*length, length, num_points)
+        x = torch.zeros((num_points, num_points, 2))
+        for i in range(num_points):
+            for j in range(num_points):
+                x[i, j, :] = torch.Tensor([ps[i], ps[j]])
+        x = x.view(-1, 2)
+        return x
+
 
 def create_loader(train_dataset, dev_dataset, test_dataset, args):
     train_loader = torch.utils.data.DataLoader(
