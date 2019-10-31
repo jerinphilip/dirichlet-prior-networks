@@ -1,5 +1,5 @@
 from collections import namedtuple, defaultdict
-from matplotlib import pyplot as plt
+from dpn.utils import plt
 import numpy as np
 from dpn.data import dataset
 
