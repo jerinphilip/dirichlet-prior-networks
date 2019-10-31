@@ -37,15 +37,9 @@ function copy {
 #     --model vgg6
 
 python3 -m dpn.main \
-    --dataset synthetic \
+    --dataset synthetic --radius 8.0 --sigma 8.0 \
     --alpha 1e3 \
-    --epochs 1000 \
-    --device cuda \
-    --batch_size 256 \
-    --momentum 0.9  \
-    --lr 1e-3       \
+    --epochs 1000 --batch_size 256 --device cuda \
+    --momentum 0.9  --lr 1e-3 --weight_decay 0.0 \
     --work_dir $WORK_DIR \
-    --weight_decay 0.0 \
     --model mlp \
-    --radius 1.0    \
-    --sigma 0.5
