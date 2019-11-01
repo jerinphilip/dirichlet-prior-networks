@@ -1,5 +1,4 @@
 
-from dpn.models import ConvModel
 
 
 def add_args(parser):
@@ -22,7 +21,9 @@ def add_args(parser):
     parser.add_argument('--radius', type=float, default=1.0)
     parser.add_argument('--sigma', type=float, default=1.0)
     parser.add_argument('--shuffle', action='store_true')
-    parser.add_argument('--num_train_samples', type=int, default=int(1e4))
+    parser.add_argument('--num_train_samples', type=int, default=int(1e5))
     parser.add_argument('--num_test_samples', type=int, default=int(1e2))
 
     parser.add_argument('--log', action='store_true')
+
+    parser.add_argument('--loss', type=str, required=True)

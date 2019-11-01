@@ -36,7 +36,7 @@ def test(args, model, criterion, device, test_loader, epoch):
             pred = logits.argmax(dim=1, keepdim=True) # get the index of the max log-probability
             correct += pred.eq(labels.view_as(pred)).sum().item()
 
-    test_loss /= len(test_loader.dataset)
+    test_loss /= len(test_loader)
 
     if args.log:
         print('Epoch {} | Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(

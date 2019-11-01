@@ -9,6 +9,7 @@ def in_ipynb():
         return False
 
 def flush_plot(plt, fname):
+    plt.legend()
     plt.savefig(fname)
     if in_ipynb(): 
         plt.show()

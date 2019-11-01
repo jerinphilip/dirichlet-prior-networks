@@ -8,7 +8,7 @@ def plot_synthetic(radius, sigma):
     Args = namedtuple('Args', 'radius sigma num_train_samples num_test_samples batch_size shuffle')
     args = Args(
         radius=radius, sigma=sigma, 
-        num_train_samples=int(1e4), num_test_samples=int(1e3),
+        num_train_samples=int(1e3), num_test_samples=int(1e2),
         batch_size=400,
         shuffle=False
     )
@@ -33,10 +33,11 @@ def plot_synthetic_classwise(title, classwise):
     plt.xlim(-20, 20)
     plt.ylim(-20, 20)
     plt.title(title)
-    for cls in classwise:
+    for i, cls in enumerate(classwise):
+        label = 'class-{}'.format(i+1)
         points = np.array(classwise[cls])
         xs, ys = points[:, 0], points[:, 1]
-        plt.scatter(xs, ys, alpha=0.05)
+        plt.scatter(xs, ys, alpha=0.1, label=label)
     return plt
 
 def plot_entropy(np_x, scores):
@@ -47,5 +48,5 @@ def plot_entropy(np_x, scores):
     # rgba_colors[:, 3] = (1 - 1/score)
     rgba_colors[:, 3] = scores
     xs, ys = np_x[:, 0], np_x[:, 1]
-    plt.scatter(xs, ys, color=rgba_colors)
+    plt.scatter(xs, ys, color=rgba_colors, label='entropy')
 

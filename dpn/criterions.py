@@ -3,8 +3,9 @@ import torch
 import torch.nn.functional as F
 from torch.distributions.dirichlet import Dirichlet
 from collections import namedtuple
+from dpn.constants import EPS
+from ast import literal_eval
 
-EPS = 1e-8
 
 def one_hot(labels, num_labels):
     # Credits: ptrblck
@@ -36,7 +37,13 @@ def lgamma(tensor):
     # Some confusion with lgamma's missing documentation.
     return torch.lgamma(tensor)
 
-class NLLCost(nn.Module):
+
+class Cost(nn.Module):
+    @classmethod
+    def build(cls, args):
+        return cls()
+
+class NLLCost(Cost):
     def __init__(self, smoothing=1e-2, reduce=True):
         super().__init__()
         self.smoothing = smoothing
@@ -65,7 +72,7 @@ class NLLCost(nn.Module):
 
         return loss.mean()
 
-class CrossEntropy(nn.Module):
+class CrossEntropy(Cost):
     def __init__(self):
         super().__init__()
 
@@ -73,7 +80,7 @@ class CrossEntropy(nn.Module):
         logits = net_output['logits']
         return F.cross_entropy(logits, labels)
 
-class DirichletKLDiv(nn.Module):
+class DirichletKLDiv(Cost):
     def __init__(self, alpha, reduce=True, smoothing=1e-2):
         super().__init__()
         self.alpha = alpha
@@ -134,7 +141,11 @@ class DirichletKLDiv(nn.Module):
         loss = loss.mean()
         return loss
 
-class MutualInformation(nn.Module):
+    @classmethod
+    def build(cls, args):
+        return cls(args.alpha)
+
+class MutualInformation(Cost):
     def __init__(self):
         super().__init__()
 
@@ -157,7 +168,7 @@ class MutualInformation(nn.Module):
         loss = mutual_information.mean()
         return loss
 
-class DifferentialEntropy(nn.Module):
+class DifferentialEntropy(Cost):
     def __init__(self):
         super().__init__()
 
@@ -196,13 +207,27 @@ def build_criterion(args):
     # Switch to control criterion
     # Criterion is a multi-task-objective.
     # https://github.com/KaosEngineer/PriorNetworks-OLD/blob/master/prior_networks/dirichlet/dirichlet_prior_network.py#L629-L640
+
+    loss_functions = {
+        "dirichlet_kldiv": DirichletKLDiv,
+        "cross_entropy": CrossEntropy,
+        "differential_entropy": DifferentialEntropy,
+        "nll": NLLCost,
+        "mutual_information": MutualInformation
+    }
+
+    weights = literal_eval(args.loss)
+
+    wkeys = set(list(weights.keys()))
+    lkeys = set(list(loss_functions.keys()))
+
+    assert((wkeys <= lkeys), "Check loss supplied")
+
     WeightedLoss = namedtuple('WeightedLoss', 'weight f')
     weighted_losses = [
-        WeightedLoss(weight=1.0, f=DirichletKLDiv(alpha = args.alpha)),
-        WeightedLoss(weight=1.0, f=CrossEntropy()),
-        WeightedLoss(weight=0.0, f=DifferentialEntropy()),
-        WeightedLoss(weight=0.0, f=NLLCost()),
-        WeightedLoss(weight=0.0, f=MutualInformation()),
+        WeightedLoss(weight=weights[fname], f=loss_functions[fname].build(args))
+        for fname in weights.keys()
     ]
+    print(weighted_losses)
     criterion = MultiTaskLoss(weighted_losses)
     return criterion
