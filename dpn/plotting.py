@@ -4,20 +4,7 @@ import numpy as np
 from dpn.data import dataset
 
 
-def plot_synthetic(radius, sigma):
-    Args = namedtuple('Args', 'radius sigma num_train_samples num_test_samples batch_size shuffle')
-    args = Args(
-        radius=radius, sigma=sigma, 
-        num_train_samples=int(1e3), num_test_samples=int(1e2),
-        batch_size=400,
-        shuffle=False
-    )
-
-    params = {
-        "radius": args.radius,
-        "sigma": args.sigma
-    }
-
+def plot_synthetic(args):
     loader = dataset['synthetic'](args)
     classwise = defaultdict(list)
     for sample in loader.train:
@@ -26,13 +13,10 @@ def plot_synthetic(radius, sigma):
         classes = classes.numpy()
         for point, cls in zip(points, classes):
             classwise[cls].append(point.tolist())
-    handle = plot_synthetic_classwise(params.__repr__(), classwise)
+    handle = plot_synthetic_classwise(classwise)
     return handle
 
-def plot_synthetic_classwise(title, classwise):
-    plt.xlim(-20, 20)
-    plt.ylim(-20, 20)
-    plt.title(title)
+def plot_synthetic_classwise(classwise):
     for i, cls in enumerate(classwise):
         label = 'class-{}'.format(i+1)
         points = np.array(classwise[cls])

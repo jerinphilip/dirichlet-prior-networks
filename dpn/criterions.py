@@ -228,6 +228,6 @@ def build_criterion(args):
         WeightedLoss(weight=weights[fname], f=loss_functions[fname].build(args))
         for fname in weights.keys()
     ]
-    print(weighted_losses)
+
     criterion = MultiTaskLoss(weighted_losses)
     return criterion
