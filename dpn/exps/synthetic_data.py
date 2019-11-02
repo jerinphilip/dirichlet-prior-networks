@@ -14,7 +14,7 @@ from dpn.args import add_args
 from dpn.plotting import plot_entropy, plot_synthetic
 from dpn.data import SyntheticDataset
 from dpn.functional import entropy_from_logits
-from dpn.utils import plt, flush_plot
+from dpn.utils import plt, flush_plot, hash_args, Saver, tqdm
 from dpn.functional import Dirichlet
 
 
@@ -51,16 +51,27 @@ def exp(args):
     plt.xlim(-1*length, length)
     plt.ylim(-1*length, length)
 
-    for scale in [4, 3, 2, 1]:
+    for scale in tqdm([4, 3, 2, 1]):
         sigma = scale*args.sigma
 
         scale_args = deepcopy(args)
         scale_args.sigma = sigma
         fname = filename_fn(scale_args)
 
-        export = main(scale_args)
+        checkpoint_dir = os.path.join(args.work_dir, 'checkpoints')
+        saver = Saver(checkpoint_dir)
+        payload = saver.load(hash_args(scale_args))
+
+        def run_and_save(scale_args):
+            export = main(scale_args)
+            payload = export['model']
+            saver.save(hash_args(scale_args), payload)
+            return payload
+
+        export = payload or run_and_save(scale_args)
+
         with torch.no_grad():
-            entropy = inference(export["model"], data)
+            entropy = inference(export, data)
             np_x = data.cpu().numpy()
             score = (entropy).exp().cpu().numpy()
             # alphas = 1 - 1/score

@@ -8,7 +8,7 @@ mkdir -p $WORK_DIR
 
 function f {
     python3 -m dpn.exps.synthetic_data \
-        --alpha 1e3 --epochs 10 --device cuda \
+        --alpha 1e3 --epochs 1 --device cuda \
         --batch_size 256 --momentum 0.9 --lr 1e-3 \
         --weight_decay 0.05 --work_dir $WORK_DIR \
         --model mlp --dataset synthetic --radius 8.0 \

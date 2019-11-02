@@ -29,8 +29,8 @@ def plot_entropy(np_x, scores):
     num_points, _ = np_x.shape
     rgba_colors = np.zeros((num_points, 4))
     rgba_colors[:, :3] = np.array([0.4, 0.4, 1.0])
-    # rgba_colors[:, 3] = (1 - 1/score)
     rgba_colors[:, 3] = scores
     xs, ys = np_x[:, 0], np_x[:, 1]
     plt.scatter(xs, ys, color=rgba_colors, label='entropy')
+    # plt.pcolormesh(xs, ys, scores, cmap='RdBu')
 
