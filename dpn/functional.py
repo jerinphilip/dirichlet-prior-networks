@@ -3,6 +3,7 @@ from dpn.constants import EPS
 from operator import and_
 from functools import reduce
 from torch.distributions import Dirichlet as Dir
+import torch
 
 
 def entropy_from_logits(logits):
@@ -24,13 +25,14 @@ class Dirichlet:
         self._logits = logits
         self._probs = probs
         self._alphas = alphas
+        self._concentration = None
 
 
         # Sanity checking - at least one is defined.
         # flags = [x is None for x in [logits, probs, alphas]]
         # assert(reduce(and_, flags))
 
-        self.dimB, self.dimH = self.logits.size()
+        self.dimB, self.dimH = 0, 1
 
     @property
     def logits(self):
@@ -54,9 +56,8 @@ class Dirichlet:
     @property
     def concentration(self):
         if self._concentration is None:
-            self._concentration =  self.alphas.sum(
-                dim=self.dimH, 
-                keepdim=True
+            self._concentration =  torch.sum(
+                self.alphas, dim=self.dimH, keepdim=True
             )
         return self._concentration
 

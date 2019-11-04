@@ -22,23 +22,27 @@ def inference(model, data):
     data = data.to(torch.device("cuda"))
     net_output = model(data)
     logits = net_output['logits']
-
     dirichlet = Dirichlet(logits=logits)
-    return dirichlet.differential_entropy()
-
+    differential_entropy = dirichlet.differential_entropy()
+    mutual_information = dirichlet.mutual_information()
     entropy = entropy_from_logits(logits)
-    return entropy
+    export =  {
+        "entropy": entropy, 
+        "mutual_information": mutual_information, 
+        "differential_entropy": differential_entropy
+    }
+    return export
 
 def exp(args):
 
     def filename_fn(args):
-        losses = literal_eval(args.ind_loss)
-        loss_info = [
-            '{}-{}'.format(key, value) \
-            for key, value in losses.items()
-        ]
-        lfs = '-'.join(loss_info)
-        rs = 'radius-{}-sigma-{}-{}.png'.format(args.radius, args.sigma, lfs)
+        # losses = literal_eval(args.ind_loss)
+        # loss_info = [
+        #     '{}-{}'.format(key, value) \
+        #     for key, value in losses.items()
+        # ]
+        # lfs = '-'.join(loss_info)
+        rs = 'N({}, {})'.format(args.radius, args.sigma)
         return rs
 
     def fpath(fname):
@@ -71,20 +75,14 @@ def exp(args):
         export = payload or run_and_save(scale_args)
 
         with torch.no_grad():
-            entropy = inference(export, data)
+            scores = inference(export, data)
             np_x = data.cpu().numpy()
-            score = (entropy).exp().cpu().numpy()
-            # alphas = 1 - 1/score
-            alphas = score
-            normalize = lambda x: (x - np.min(x))/np.ptp(x)
-            norm_alphas = normalize(alphas)
-            norm_alphas = alphas
-            # plot_entropy(np_x, norm_alphas)
-            # plot_synthetic(scale_args)
-            plot_pcolormesh(linspace, norm_alphas, 
-                    label='differential-entropy')
-            plt.title(fname)
-            flush_plot(plt, fpath(fname))
+            for key in scores:
+                score = scores[key].cpu().numpy()
+                plot_pcolormesh(np_x, linspace, score)
+                score_fname = '{}_{}'.format(fname, key)
+                plt.title(score_fname)
+                flush_plot(plt, fpath(score_fname) + '.png')
 
 
 if __name__ == '__main__':
