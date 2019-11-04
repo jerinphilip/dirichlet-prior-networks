@@ -51,7 +51,7 @@ def exp(args):
     plt.xlim(-1*length, length)
     plt.ylim(-1*length, length)
 
-    for scale in tqdm([4, 3, 2, 1]):
+    for scale in tqdm([1, 2, 3, 4]):
         sigma = scale*args.sigma
 
         scale_args = deepcopy(args)

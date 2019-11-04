@@ -166,7 +166,8 @@ def RandomNoise2DBuilder(args):
                 sigma=args.sigma, num_samples=0)
 
     def gen(num_samples):
-        return RandomNoise2D(synthetic_dataset, num_samples=args.num_train_samples)
+        return RandomNoise2D(synthetic_dataset, num_samples=args.num_train_samples, 
+                threshold=args.rejection_threshold)
 
     train_dataset = gen(args.num_train_samples)
     test_dataset = gen(args.num_test_samples)

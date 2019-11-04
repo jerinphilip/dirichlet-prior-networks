@@ -29,3 +29,4 @@ def add_args(parser):
     parser.add_argument('--ind-loss', type=str, required=True)
     parser.add_argument('--ood-loss', type=str, required=True)
     parser.add_argument('--ind-fraction', type=float, default=0.5)
+    parser.add_argument('--rejection-threshold', type=float, default=1e-4)

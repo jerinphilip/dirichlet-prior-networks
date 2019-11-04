@@ -23,17 +23,17 @@ def train(args, model, criterion, device, train_loader, optimizer, epoch):
             _loss = criterion[dtype](net_output, labels, in_domain=in_domain)
             return _loss
 
-        loss = (
-                f(DatasetType.InD) +
-                f(DatasetType.OoD)
-        )
+        in_domain_loss = f(DatasetType.InD)
+        out_of_domain_loss = f(DatasetType.OoD)
+        loss = (in_domain_loss + out_of_domain_loss)
         # OoD samples
         loss.backward()
         optimizer.step()
         if batch_idx % args.log_interval == 0 and args.log:
-            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
+            print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: ind {:.6f} ood {:.6f} net {:6f}'.format(
                 epoch, batch_idx * train_loader.batch_size, train_loader.num_samples,
-                100. * batch_idx / len(train_loader), loss.item()))
+                100. * batch_idx / len(train_loader), in_domain_loss.item(), out_of_domain_loss.item(),
+                loss.item()))
 
 def test(args, model, criterion, device, test_loader, epoch):
     model.eval()
@@ -50,7 +50,7 @@ def test(args, model, criterion, device, test_loader, epoch):
                 return net_output['logits'], labels, _loss
 
             logits, labels, _in_domain_loss = f(DatasetType.InD)
-            in_domain_loss += in_domain_loss
+            in_domain_loss += _in_domain_loss
             pred = logits.argmax(dim=1, keepdim=True) # get the index of the max log-probability
             correct += pred.eq(labels.view_as(pred)).sum().item()
 
