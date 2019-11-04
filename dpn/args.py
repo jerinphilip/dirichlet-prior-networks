@@ -26,4 +26,6 @@ def add_args(parser):
 
     parser.add_argument('--log', action='store_true')
 
-    parser.add_argument('--loss', type=str, required=True)
+    parser.add_argument('--ind-loss', type=str, required=True)
+    parser.add_argument('--ood-loss', type=str, required=True)
+    parser.add_argument('--ind-fraction', type=float, default=0.5)

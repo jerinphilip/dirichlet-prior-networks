@@ -7,20 +7,32 @@ from torchvision import datasets, transforms
 from dpn.models import build_model
 from dpn.criterions import build_criterion
 from dpn.args import add_args
+from dpn.constants import DatasetType
 from collections import namedtuple
 
 def train(args, model, criterion, device, train_loader, optimizer, epoch):
     model.train()
-    for batch_idx, (data, labels) in enumerate(train_loader):
-        data, labels = data.to(device), labels.to(device)
+    for batch_idx, samples in enumerate(train_loader):
         optimizer.zero_grad()
-        net_output = model(data)
-        loss = criterion(net_output, labels)
+
+        def f(dtype):
+            data, labels = samples[dtype]
+            data, labels = data.to(device), labels.to(device)
+            net_output = model(data)
+            in_domain = (dtype == DatasetType.InD)
+            _loss = criterion[dtype](net_output, labels, in_domain=in_domain)
+            return _loss
+
+        loss = (
+                # f(DatasetType.InD) +
+                f(DatasetType.OoD)
+        )
+        # OoD samples
         loss.backward()
         optimizer.step()
         if batch_idx % args.log_interval == 0 and args.log:
             print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
-                epoch, batch_idx * len(data), len(train_loader.dataset),
+                epoch, batch_idx * train_loader.batch_size, train_loader.num_samples,
                 100. * batch_idx / len(train_loader), loss.item()))
 
 def test(args, model, criterion, device, test_loader, epoch):

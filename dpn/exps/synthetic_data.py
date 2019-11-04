@@ -11,7 +11,7 @@ from ast import literal_eval
 
 from dpn.main import main
 from dpn.args import add_args
-from dpn.plotting import plot_entropy, plot_synthetic
+from dpn.plotting import plot_entropy, plot_synthetic, plot_pcolormesh
 from dpn.data import SyntheticDataset
 from dpn.functional import entropy_from_logits
 from dpn.utils import plt, flush_plot, hash_args, Saver, tqdm
@@ -32,7 +32,7 @@ def inference(model, data):
 def exp(args):
 
     def filename_fn(args):
-        losses = literal_eval(args.loss)
+        losses = literal_eval(args.ind_loss)
         loss_info = [
             '{}-{}'.format(key, value) \
             for key, value in losses.items()
@@ -46,7 +46,7 @@ def exp(args):
         return _fpath
 
     length = 5*args.radius
-    data = SyntheticDataset.grid_data(args.num_points, length=length)
+    linspace, data = SyntheticDataset.grid_data(args.num_points, length=length)
 
     plt.xlim(-1*length, length)
     plt.ylim(-1*length, length)
@@ -78,8 +78,11 @@ def exp(args):
             alphas = score
             normalize = lambda x: (x - np.min(x))/np.ptp(x)
             norm_alphas = normalize(alphas)
-            plot_entropy(np_x, norm_alphas)
-            plot_synthetic(scale_args)
+            norm_alphas = alphas
+            # plot_entropy(np_x, norm_alphas)
+            # plot_synthetic(scale_args)
+            plot_pcolormesh(linspace, norm_alphas, 
+                    label='differential-entropy')
             plt.title(fname)
             flush_plot(plt, fpath(fname))
 

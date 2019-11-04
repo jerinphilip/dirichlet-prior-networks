@@ -1,7 +1,10 @@
+import math
+import numpy as np
+from scipy.interpolate import griddata
 from collections import namedtuple, defaultdict
 from dpn.utils import plt
-import numpy as np
 from dpn.data import dataset
+
 
 
 def plot_synthetic(args):
@@ -33,4 +36,11 @@ def plot_entropy(np_x, scores):
     xs, ys = np_x[:, 0], np_x[:, 1]
     plt.scatter(xs, ys, color=rgba_colors, label='entropy')
     # plt.pcolormesh(xs, ys, scores, cmap='RdBu')
+
+def plot_pcolormesh(linspace, scores, label='unknown'):
+    num_points, = scores.shape 
+    grid_size = int(math.sqrt(num_points))
+    scores = scores.reshape(grid_size, grid_size)
+    plt.pcolormesh(linspace, linspace, scores, cmap='Blues')
+    plt.colorbar()
 

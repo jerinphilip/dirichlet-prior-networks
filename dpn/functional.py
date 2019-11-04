@@ -82,4 +82,19 @@ class Dirichlet:
         return max_prob(self.logits)
 
     def variation_ratio(self): pass
-    def mutual_information(self): pass
+
+    def mutual_information(self): 
+        # Expected entropy seems to be same as mutual information.
+        # Weird. Must numerically verify.
+        conc = self.concentration
+        alphas = self.alphas
+
+        return -1*torch.sum(
+            alphas/conc
+            * torch.log(alphas/conc)
+            - torch.digamma(alphas + 1.0)
+            + torch.digamma(conc   + 1.0)
+            ,dim = self.dimH
+        )
+
+

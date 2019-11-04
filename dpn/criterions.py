@@ -3,7 +3,7 @@ import torch
 import torch.nn.functional as F
 from torch.distributions.dirichlet import Dirichlet
 from collections import namedtuple
-from dpn.constants import EPS
+from dpn.constants import EPS, DatasetType
 from ast import literal_eval
 
 
@@ -49,7 +49,7 @@ class NLLCost(Cost):
         self.smoothing = smoothing
         self.reduce = reduce
 
-    def forward(self, net_output, labels):
+    def forward(self, net_output, labels, **kwargs):
         # Translating below segment to PyTorch. This one is present in  the paper.
         # https://github.com/KaosEngineer/PriorNetworks-OLD/blob/79cb8300238271566a5bbb69f0744f1d80924a1a/prior_networks/dirichlet/dirichlet_prior_network.py#L328-L334
 
@@ -76,7 +76,7 @@ class CrossEntropy(Cost):
     def __init__(self):
         super().__init__()
 
-    def forward(self, net_output, labels):
+    def forward(self, net_output, labels, **kwargs):
         logits = net_output['logits']
         return F.cross_entropy(logits, labels)
 
@@ -87,7 +87,7 @@ class DirichletKLDiv(Cost):
         self.reduce = reduce
         self.smoothing = smoothing
 
-    def forward(self, net_output, labels, in_domain=True):
+    def forward(self, net_output, labels, in_domain=True, **kwargs):
         # Translation of
         # https://github.com/KaosEngineer/PriorNetworks-OLD/blob/master/prior_networks/dirichlet/dirichlet_prior_network.py#L281-L294
 
@@ -111,7 +111,7 @@ class DirichletKLDiv(Cost):
         def out_of_domain_targets():
             # https://github.com/KaosEngineer/PriorNetworks-OLD/blob/master/prior_networks/dirichlet/dirichlet_prior_network.py#L619-L623
             target_precision = num_classes * precision.new_ones((batch_size, 1)).float()
-            target_mean = torch.ones_like(mean)/num_classes
+            target_mean = torch.ones_like(mean).float()/num_classes
             return target_mean, target_precision
 
         target_f = in_domain_targets if in_domain else out_of_domain_targets
@@ -149,7 +149,7 @@ class MutualInformation(Cost):
     def __init__(self):
         super().__init__()
 
-    def forward(self, net_output, labels):
+    def forward(self, net_output, labels, **kwargs):
         logits = net_output['logits']
         dimB, dimH = 0, 1
         alphas, concentration = dirichlet_params_from_logits(logits)
@@ -172,7 +172,7 @@ class DifferentialEntropy(Cost):
     def __init__(self):
         super().__init__()
 
-    def forward(self, net_output, labels):
+    def forward(self, net_output, labels, **kwargs):
         logits = net_output['logits']
 
         dimB, dimH = 0, 1
@@ -195,11 +195,11 @@ class MultiTaskLoss(nn.Module):
         super().__init__()
         self.losses = weighted_losses
 
-    def forward(self, net_output, labels):
+    def forward(self, net_output, labels, **kwargs):
         accumulator = 0
         for loss in self.losses:
             if loss.weight:
-                accumulator += loss.weight * loss.f(net_output, labels)
+                accumulator += loss.weight * loss.f(net_output, labels, **kwargs)
         return accumulator
 
 
@@ -216,18 +216,29 @@ def build_criterion(args):
         "mutual_information": MutualInformation
     }
 
-    weights = literal_eval(args.loss)
+    def validate_keys(weights):
+        wkeys = set(list(weights.keys()))
+        lkeys = set(list(loss_functions.keys()))
+        assert((wkeys <= lkeys), "Check loss supplied")
 
-    wkeys = set(list(weights.keys()))
-    lkeys = set(list(loss_functions.keys()))
+    def build_weighted_loss(weights):
+        WeightedLoss = namedtuple('WeightedLoss', 'weight f')
+        weighted_losses = [
+            WeightedLoss(weight=weights[fname], f=loss_functions[fname].build(args))
+            for fname in weights.keys()
+        ]
+        criterion = MultiTaskLoss(weighted_losses)
+        return criterion
 
-    assert((wkeys <= lkeys), "Check loss supplied")
+    ind_weights = literal_eval(args.ind_loss)
+    ood_weights = literal_eval(args.ood_loss)
 
-    WeightedLoss = namedtuple('WeightedLoss', 'weight f')
-    weighted_losses = [
-        WeightedLoss(weight=weights[fname], f=loss_functions[fname].build(args))
-        for fname in weights.keys()
-    ]
+    validate_keys(ind_weights)
+    validate_keys(ood_weights)
 
-    criterion = MultiTaskLoss(weighted_losses)
+    criterion = {
+        DatasetType.InD: build_weighted_loss(ind_weights),
+        DatasetType.OoD: build_weighted_loss(ood_weights)
+    }
+
     return criterion
