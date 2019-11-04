@@ -24,7 +24,7 @@ def train(args, model, criterion, device, train_loader, optimizer, epoch):
             return _loss
 
         loss = (
-                # f(DatasetType.InD) +
+                f(DatasetType.InD) +
                 f(DatasetType.OoD)
         )
         # OoD samples
@@ -37,24 +37,34 @@ def train(args, model, criterion, device, train_loader, optimizer, epoch):
 
 def test(args, model, criterion, device, test_loader, epoch):
     model.eval()
-    test_loss = 0
+    in_domain_loss, out_of_domain_loss = 0, 0
     correct = 0
     with torch.no_grad():
-        for data, labels in test_loader:
-            data, labels = data.to(device), labels.to(device)
-            net_output = model(data)
-            logits = net_output['logits']
-            test_loss += criterion(net_output, labels)
+        for batch_idx, samples in enumerate(test_loader):
+            def f(dtype):
+                data, labels = samples[dtype]
+                data, labels = data.to(device), labels.to(device)
+                net_output = model(data)
+                in_domain = (dtype == DatasetType.InD)
+                _loss = criterion[dtype](net_output, labels, in_domain=in_domain)
+                return net_output['logits'], labels, _loss
+
+            logits, labels, _in_domain_loss = f(DatasetType.InD)
+            in_domain_loss += in_domain_loss
             pred = logits.argmax(dim=1, keepdim=True) # get the index of the max log-probability
             correct += pred.eq(labels.view_as(pred)).sum().item()
 
-    test_loss /= len(test_loader)
+            _, _, _out_of_domain_loss = f(DatasetType.OoD)
+            out_of_domain_loss += _out_of_domain_loss
+
+    in_domain_loss /= len(test_loader)
+    out_of_domain_loss /= len(test_loader)
 
     if args.log:
-        print('Epoch {} | Test set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
+        print('Epoch {} | Test set: Average loss: ind {:.4f} ood:{:.4f}, Accuracy: {}/{} ({:.0f}%)'.format(
             epoch,
-            test_loss, correct, len(test_loader.dataset),
-            100. * correct / len(test_loader.dataset)))
+            in_domain_loss, out_of_domain_loss, correct, test_loader.num_samples,
+            100. * correct / test_loader.num_samples))
 
 
 def build_optimizer(args, model):

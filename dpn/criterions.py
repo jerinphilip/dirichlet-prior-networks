@@ -100,10 +100,10 @@ class DirichletKLDiv(Cost):
         mean = F.softmax(logits, dim=dimH)
         precision = torch.sum((logits + gain).exp(), dim=dimH, keepdim=True)
 
-        # the expected mean and precision, from the ground truth
-        labels_one_hot = one_hot(labels, num_classes).float()
 
         def in_domain_targets():
+            # the expected mean and precision, from the ground truth
+            labels_one_hot = one_hot(labels, num_classes).float()
             target_mean = label_smooth(labels_one_hot, self.smoothing)
             target_precision = self.alpha * precision.new_ones((batch_size, 1))
             return target_mean, target_precision
