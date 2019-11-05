@@ -25,8 +25,7 @@ class Dirichlet:
         self._logits = logits
         self._probs = probs
         self._alphas = alphas
-        self._concentration = None
-
+        self._a0 = None
 
         # Sanity checking - at least one is defined.
         # flags = [x is None for x in [logits, probs, alphas]]
@@ -49,17 +48,15 @@ class Dirichlet:
     def probs(self):
         if self._probs is None:
             self._probs = F.softmax(logits, dim=self.dimH)
-
         return self._probs
 
-
     @property
-    def concentration(self):
-        if self._concentration is None:
-            self._concentration =  torch.sum(
+    def a0(self):
+        if self._a0 is None:
+            self._a0 =  torch.sum(
                 self.alphas, dim=self.dimH, keepdim=True
             )
-        return self._concentration
+        return self._a0
 
     def differential_entropy(self): 
         distribution = Dir(self.alphas)
@@ -67,10 +64,10 @@ class Dirichlet:
 
     def expected_entropy(self): 
         alphas = self.alphas
-        conc = self.concentration
+        a0 = self.a0
         expected_entropy = -1 * torch.sum(
-                torch.exp(alphas.log() - conc.log())
-                * (torch.digamma(alphas + 1.0) - digamma(conc + 1.0))
+                torch.exp(alphas.log() - a0.log())
+                * (torch.digamma(alphas + 1.0) - digamma(a0 + 1.0))
             , dim = self.dimH
         )
 
@@ -86,15 +83,14 @@ class Dirichlet:
 
     def mutual_information(self): 
         # Expected entropy seems to be same as mutual information.
-        # Weird. Must numerically verify.
-        conc = self.concentration
+        a0 = self.a0
         alphas = self.alphas
 
         return -1*torch.sum(
-            alphas/conc
-            * torch.log(alphas/conc)
+            alphas/a0
+            * torch.log(alphas/a0)
             - torch.digamma(alphas + 1.0)
-            + torch.digamma(conc   + 1.0)
+            + torch.digamma(a0   + 1.0)
             ,dim = self.dimH
         )
 

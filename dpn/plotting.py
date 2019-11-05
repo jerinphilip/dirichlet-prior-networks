@@ -40,7 +40,6 @@ def plot_entropy(np_x, scores):
 def plot_pcolormesh(np_x, linspace, scores, label='unknown'):
     num_points, = scores.shape 
     zi = griddata(np_x, scores, (linspace[None, :], linspace[:, None]), method='cubic')
-    print(zi.shape)
     plt.contourf(linspace, linspace, zi, cmap=cm.Blues, alpha=0.9)
     plt.colorbar()
 

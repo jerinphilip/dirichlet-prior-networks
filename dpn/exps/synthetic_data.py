@@ -34,14 +34,7 @@ def inference(model, data):
     return export
 
 def exp(args):
-
     def filename_fn(args):
-        # losses = literal_eval(args.ind_loss)
-        # loss_info = [
-        #     '{}-{}'.format(key, value) \
-        #     for key, value in losses.items()
-        # ]
-        # lfs = '-'.join(loss_info)
         rs = 'N({}, {})'.format(args.radius, args.sigma)
         return rs
 

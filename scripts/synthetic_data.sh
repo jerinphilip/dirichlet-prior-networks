@@ -8,15 +8,16 @@ mkdir -p $WORK_DIR
 
 function f {
     python3 -m dpn.exps.synthetic_data \
-        --alpha 1e3 --epochs 5 --device cuda \
-        --batch_size 512 --momentum 0.9 --lr 1e-3 \
+        --alpha 1e3 --epochs 4 --device cuda \
+        --batch_size 128 --momentum 0.9 --lr 1e-3 \
         --weight_decay 0.05 --work_dir $WORK_DIR \
-        --model mlp --dataset synthetic --radius 8.0 \
+        --model mlp --dataset synthetic --radius 4.0 \
         --sigma 1.0 --shuffle \
         --num_train_samples 100000 --num_test_samples 1000 \
         --log --ind-loss "$1" --ood-loss "$2"\
         --output-dir $WORK_DIR  \
-        --num_points 200 --log_interval 10
+        --num_points 200 --log_interval 10 \
+        --rejection-threshold 1.0672106745950928e-05 # norm.pdf(3.1)**2
 }
 
 # f "{'cross_entropy': 1.0}"
