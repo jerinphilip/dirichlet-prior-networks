@@ -88,9 +88,11 @@ class Dirichlet:
 
         return -1*torch.sum(
             alphas/a0
-            * torch.log(alphas/a0)
-            - torch.digamma(alphas + 1.0)
-            + torch.digamma(a0   + 1.0)
+            * (
+                torch.log(alphas/a0)
+                - torch.digamma(alphas + 1.0)
+                + torch.digamma(a0   + 1.0)
+            )
             ,dim = self.dimH
         )
 
